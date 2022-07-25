@@ -342,7 +342,7 @@ export class BuildHAT {
       // debug("checksum", i);
       // const x = i < data.byteLength ? data.readUInt8(i) : 0;
 
-      if ((u & 0x80000000) !== 0) {
+      if (u & 0x80000000) {
         u = (u << 1) ^ 0x1d872b41;
       } else {
         u = u << 1;
