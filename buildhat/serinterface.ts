@@ -296,21 +296,21 @@ export class BuildHAT {
     const sig = await fs.readFile(signature);
 
     await this.writeStr("clear\r");
-    this.getprompt();
+    await this.getprompt();
     await this.writeStr(`load ${firm.byteLength} ${this.checksum(firm)}\r`);
     await pause(100);
     await this.write(Buffer.from("02", "hex"), "0x02");
     await this.write(firm, "--firmware file--");
     await this.write(Buffer.from("03", "hex"), "0x03");
     await this.writeStr("\r");
-    this.getprompt();
+    await this.getprompt();
     await this.writeStr(`signature ${sig.length}\r`);
     await pause(100);
     await this.write(Buffer.from("02", "hex"), "0x02");
     await this.write(sig, "--signature file--");
     await this.write(Buffer.from("03", "hex"), "0x03");
     await this.writeStr("\r");
-    this.getprompt();
+    await this.getprompt();
   }
 
   public async getprompt() {
