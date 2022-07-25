@@ -249,7 +249,8 @@ export class BuildHAT {
         this.state === HatState.NEEDNEWFIRMWARE ||
         this.state === HatState.BOOTLOADER
       ) {
-        await this.write(Buffer.from("reboot\r", "utf-8"));
+        debug("Rebooting for new firmware");
+        await this.writeStr("reboot\r");
       }
 
       // # wait for initialisation to finish
