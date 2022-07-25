@@ -211,9 +211,11 @@ export class BuildHAT {
       const currentState = await initPromise;
 
       if (currentState === HatState.NEEDNEWFIRMWARE) {
+        debug("new new firmware");
         await this.resetHAT();
         await this.loadfirmware(firmware, signature);
       } else if (currentState === HatState.BOOTLOADER) {
+        debug("bootloader");
         await this.loadfirmware(firmware, signature);
       } else {
         throw new Error("Unknown state");
