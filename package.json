@@ -1,0 +1,41 @@
+{
+  "name": "@yottabrick/build-hat",
+  "version": "0.1.0",
+  "description": "NodeJS interface to Raspberry Pi Build Hat",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/highflying/python-build-hat.git"
+  },
+  "author": "Ben Rogers <ben@bdr.org>",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/highflying/python-build-hat/issues"
+  },
+  "homepage": "https://github.com/highflying/python-build-hat#readme",
+  "devDependencies": {
+    "@types/debug": "^4.1.7",
+    "@types/node": "^18.0.6",
+    "@types/rpio": "^2.4.2",
+    "@typescript-eslint/eslint-plugin": "^5.30.7",
+    "@typescript-eslint/parser": "^5.30.7",
+    "debug": "^4.3.4",
+    "eslint": "^8.20.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "prettier": "^2.7.1",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.7.4"
+  },
+  "dependencies": {
+    "rpio": "^2.4.2",
+    "serialport": "^10.4.0"
+  }
+}

@@ -72,3 +72,5 @@ venv.bak/
 # ide
 .idea/
 *.iml
+
+node_modules
