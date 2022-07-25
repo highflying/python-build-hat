@@ -337,18 +337,18 @@ export class BuildHAT {
     // :param data: Data to calculate the checksum from
     // :return: Checksum that has been calculated
     // """
-    let u = 1;
+    let u = BigInt(1);
     for (let i = 0; i < data.byteLength; i++) {
       // debug("checksum", i);
       // const x = i < data.byteLength ? data.readUInt8(i) : 0;
 
-      if (u & 0x80000000) {
-        u = (u << 1) ^ 0x1d872b41;
+      if (u & BigInt(0x80000000)) {
+        u = (u << BigInt(1)) ^ BigInt(0x1d872b41);
       } else {
-        u = u << 1;
+        u = u << BigInt(1);
       }
       console.log(data.readUInt8(i));
-      u = (u ^ data.readUInt8(i)) & 0xffffffff;
+      u = (u ^ BigInt(data.readUInt8(i))) & BigInt(0xffffffff);
     }
     return u;
   }
