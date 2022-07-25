@@ -325,6 +325,7 @@ export class BuildHAT {
         break;
       }
     }
+    debug("Returning from getprompt");
   }
 
   public checksum(data: Buffer) {
