@@ -356,9 +356,13 @@ export class BuildHAT {
     // :param log: Whether to log line or not
     // :param replace: Whether to log an alternative string
     // """
-    await new Promise<void>((resolve, reject) =>
-      this.ser.write(data, (err) => (err ? reject(err) : resolve()))
-    );
+    await new Promise<void>((resolve, reject) => {
+      const result = this.ser.write(data, (err) =>
+        err ? reject(err) : resolve()
+      );
+
+      debug("write result", result);
+    });
 
     if (!this.fin) {
       if (replace) {
