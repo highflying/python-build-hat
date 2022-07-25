@@ -345,7 +345,7 @@ export class BuildHAT {
       } else {
         u = u << 1;
       }
-      u = (u ^ data.readUInt8(i)) & 0xffffffff;
+      u = (u ^ data.at(i)!) & 0xffffffff;
     }
     return u;
   }
