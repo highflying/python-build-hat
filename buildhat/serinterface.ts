@@ -241,13 +241,10 @@ export class BuildHAT {
       // this.th.start()
 
       if (this.state === HatState.FIRMWARE) {
-        await this.write(
-          Buffer.from(
-            "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r",
-            "utf-8"
-          )
+        await this.writeStr(
+          "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
         );
-        await this.write(Buffer.from("list\r", "utf-8"));
+        await this.writeStr("list\r");
       } else if (
         this.state === HatState.NEEDNEWFIRMWARE ||
         this.state === HatState.BOOTLOADER
@@ -363,14 +360,6 @@ export class BuildHAT {
     // :param log: Whether to log line or not
     // :param replace: Whether to log an alternative string
     // """
-    await new Promise<void>((resolve, reject) => {
-      const result = this.ser.write(data, (err) =>
-        err ? reject(err) : resolve()
-      );
-
-      debug("write result", result);
-    });
-
     if (!this.fin) {
       if (replace) {
         debug(`> ${replace}`);
@@ -378,6 +367,14 @@ export class BuildHAT {
         debug(`> ${data.toString("utf-8")}`);
       }
     }
+
+    await new Promise<void>((resolve, reject) => {
+      const result = this.ser.write(data, (err) =>
+        err ? reject(err) : resolve()
+      );
+
+      debug("write result", result);
+    });
   }
 
   // public read() {
