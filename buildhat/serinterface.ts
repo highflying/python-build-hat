@@ -347,6 +347,7 @@ export class BuildHAT {
       } else {
         u = u << 1;
       }
+      console.log(data.readUInt8(i));
       u = (u ^ data.readUInt8(i)) & 0xffffffff;
     }
     return u;
