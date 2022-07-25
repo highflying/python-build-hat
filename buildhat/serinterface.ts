@@ -321,6 +321,7 @@ export class BuildHAT {
     while (true) {
       const line = await this.read();
       if (cmp(line, BuildHatConst.PROMPT)) {
+        debug("Got prompt");
         break;
       }
     }
