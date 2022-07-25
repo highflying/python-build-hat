@@ -347,7 +347,6 @@ export class BuildHAT {
       } else {
         u = u << BigInt(1);
       }
-      console.log(data.readUInt8(i));
       u = (u ^ BigInt(data.readUInt8(i))) & BigInt(0xffffffff);
     }
     return u;
