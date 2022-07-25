@@ -338,14 +338,14 @@ export class BuildHAT {
     // :return: Checksum that has been calculated
     // """
     let u = 1;
-    for (let i = 0; i < data.byteLength; i++) {
+    for (let i = 0; i <= data.byteLength; i++) {
       // debug("checksum", i);
       if ((u & 0x80000000) !== 0) {
         u = (u << 1) ^ 0x1d872b41;
       } else {
         u = u << 1;
       }
-      u = (u ^ data.at(i)!) & 0xffffffff;
+      u = (u ^ data.readUInt8(i)) & 0xffffffff;
     }
     return u;
   }
