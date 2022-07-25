@@ -263,7 +263,9 @@ export class BuildHAT {
 
   public async resetHAT() {
     // """Reset the HAT"""
-    rpio.init();
+    rpio.init({
+      mapping: "gpio",
+    });
 
     rpio.open(BuildHatConst.RESET_GPIO_NUMBER, rpio.OUTPUT);
     rpio.open(BuildHatConst.BOOT0_GPIO_NUMBER, rpio.OUTPUT);
