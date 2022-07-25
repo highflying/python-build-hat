@@ -241,6 +241,7 @@ export class BuildHAT {
       // this.th.start()
 
       if (this.state === HatState.FIRMWARE) {
+        debug("Selecting ports");
         await this.writeStr(
           "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
         );
@@ -253,6 +254,7 @@ export class BuildHAT {
         await this.writeStr("reboot\r");
       }
 
+      debug("init done");
       // # wait for initialisation to finish
       // with this.cond:
       //     this.cond.wait()
@@ -311,6 +313,7 @@ export class BuildHAT {
     await this.write(Buffer.from("03", "hex"), "0x03");
     await this.writeStr("\r");
     await this.getprompt();
+    debug("Finished loading firmware");
   }
 
   public async getprompt() {
