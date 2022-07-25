@@ -331,6 +331,7 @@ export class BuildHAT {
   }
 
   public checksum(data: Buffer) {
+    // 3269132858
     // """Calculate checksum from data
 
     // :param data: Data to calculate the checksum from
@@ -344,7 +345,7 @@ export class BuildHAT {
       } else {
         u = u << 1;
       }
-      u = (u ^ data.readUInt8(i)) & 0xffffffff;
+      u = (u ^ data.readInt8(i)) & 0xffffffff;
     }
     return u;
   }
