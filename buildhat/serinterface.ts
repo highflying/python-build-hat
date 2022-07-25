@@ -170,7 +170,11 @@ export class BuildHAT {
     version: number,
     device = "/dev/serial0"
   ) {
-    this.ser = new SerialPort({ path: device, baudRate: 115200 });
+    this.ser = new SerialPort({
+      path: device,
+      baudRate: 115200,
+      autoOpen: false,
+    });
 
     let incdata = 0;
     this.ser.open(async (err) => {
