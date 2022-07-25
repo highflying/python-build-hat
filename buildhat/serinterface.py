@@ -71,7 +71,7 @@ class BuildHAT:
     RESET_GPIO_NUMBER = 4
     BOOT0_GPIO_NUMBER = 22
 
-    def __init__(self, firmware, signature, version, device="/dev/serial0", debug=False):
+    def __init__(self, firmware, signature, version, device="/dev/serial0", debug=True):
         """Interact with Build HAT
 
         :param firmware: Firmware file
