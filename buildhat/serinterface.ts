@@ -17,6 +17,7 @@ import rpio from "rpio";
 import DebugFactory from "debug";
 import { SerialPort } from "serialport";
 import { promises as fs } from "fs";
+import { ReadlineParser } from "@serialport/parser-readline";
 
 const debug = DebugFactory("buildhat:serinterface");
 
@@ -113,6 +114,7 @@ export class BuildHAT {
   // private vincond :any;
   // private vin: any;
   private ser!: SerialPort;
+  private parser!: ReadlineParser;
 
   constructor() {
     // """Interact with Build HAT
@@ -158,7 +160,7 @@ export class BuildHAT {
 
   private async read() {
     return new Promise<string>((resolve) => {
-      this.ser.once("data", (data) => {
+      this.parser.once("data", (data) => {
         debug(`< ${data}`);
         resolve(data);
       });
@@ -181,6 +183,8 @@ export class BuildHAT {
       if (err) {
         throw err;
       }
+
+      this.parser = this.ser.pipe(new ReadlineParser({ delimiter: "\r\n" }));
 
       const initPromise = new Promise<HatState>(async (resolve, reject) => {
         while (true) {
@@ -434,7 +438,7 @@ export class BuildHAT {
     // :param q: Queue for callback events
     // """
     const count = 0;
-    this.ser.on("data", (line: string) => {
+    this.parser.on("data", (line: string) => {
       if (line.length === 0) {
         return;
       }
