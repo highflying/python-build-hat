@@ -193,6 +193,7 @@ export class BuildHAT {
           if (cmp(data, BuildHatConst.FIRMWARE)) {
             const versionRegex = new RegExp(`^${BuildHatConst.FIRMWARE}(\d+)`);
             const match = versionRegex.exec(data);
+            debug("version match", match);
             if (match && match[1] && Number(match[1]) === version) {
               return resolve(HatState.FIRMWARE);
             }
@@ -208,13 +209,13 @@ export class BuildHAT {
           if (incdata > 5) {
             reject(new Error("Build HAT not found"));
           } else {
-            await this.write(Buffer.from("version\r"));
+            await this.writeStr("version\r");
           }
         }
       });
 
       // # Check if we're in the bootloader or the firmware
-      await this.write(Buffer.from("version\r"));
+      await this.writeStr("version\r");
 
       const currentState = await initPromise;
 
