@@ -242,6 +242,8 @@ export class BuildHAT {
       // this.th.start()
 
       if (currentState === HatState.FIRMWARE) {
+        debug("Setting up listener");
+        this.parser.on("data", (data) => this.loop(data));
         debug("Selecting ports");
         await this.writeStr(
           "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
@@ -257,7 +259,6 @@ export class BuildHAT {
 
       debug("init done", currentState);
 
-      this.parser.on("data", (data) => this.loop(data));
       // # wait for initialisation to finish
       // with this.cond:
       //     this.cond.wait()
