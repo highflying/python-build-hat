@@ -440,9 +440,9 @@ export class BuildHAT extends EventEmitter {
       if (turnOffCmds.length) {
         await Bluebird.each(turnOffCmds, (cmd) => this.writeStr(cmd));
       }
-      await this.writeStr(
-        "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
-      );
+      // await this.writeStr(
+      //   "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
+      // );
       return new Promise<void>((resolve, reject) =>
         this.ser.close((err) => (err ? reject(err) : resolve()))
       );
