@@ -454,6 +454,8 @@ export class BuildHAT {
     // :param uselist: Whether we're using the HATs 'list' function or not
     // :param q: Queue for callback events
     // """
+
+    debug("< ${line}");
     if (line.length === 0) {
       return;
     }
