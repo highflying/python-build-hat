@@ -256,6 +256,8 @@ export class BuildHAT {
       }
 
       debug("init done", currentState);
+
+      this.parser.on("data", (data) => this.loop(data));
       // # wait for initialisation to finish
       // with this.cond:
       //     this.cond.wait()
@@ -444,103 +446,100 @@ export class BuildHAT {
   //     }
   // }
 
-  public loop() {
+  public loop(line: string) {
     // """Event handling for Build HAT
 
     // :param cond: Condition used to block user's script till we're ready
     // :param uselist: Whether we're using the HATs 'list' function or not
     // :param q: Queue for callback events
     // """
-    const count = 0;
-    this.parser.on("data", (line: string) => {
-      if (line.length === 0) {
-        return;
-      }
+    if (line.length === 0) {
+      return;
+    }
 
-      if (line[0] === "P" && line[2] == ":") {
-        // const portid = Number(line[1])
-        const [, msg] = line.split(":");
-        if (cmp(msg, BuildHatConst.CONNECTED)) {
-          console.log("connected", msg);
-          // typeid = Number(line[2 + len(BuildHatConst.CONNECTED):], 16)
-          // this.connections[portid].update(typeid, True)
-          // if( typeid == 64) {
-          //     this.write(f"port {portid} ; on\r".encode())
-          // }
-          // if (uselist) {
-          //     count += 1
-          // }
-        } else if (cmp(msg, BuildHatConst.CONNECTEDPASSIVE)) {
-          console.log("connect passive", msg);
-          // typeid = int(line[2 + len(BuildHatConst.CONNECTEDPASSIVE):], 16)
-          // this.connections[portid].update(typeid, True)
-          // if (uselist) {
-          //     count += 1
-          // }
-        } else if (cmp(msg, BuildHatConst.DISCONNECTED)) {
-          console.log("disconnected", msg);
-          // this.connections[portid].update(-1, false)
-        } else if (cmp(msg, BuildHatConst.DEVTIMEOUT)) {
-          console.log("DEVTIMEOUT", msg);
-          // this.connections[portid].update(-1, false)
-        } else if (cmp(msg, BuildHatConst.NOTCONNECTED)) {
-          console.log("NOTCONNECTED", msg);
-          // this.connections[portid].update(-1, false)
-          // if( uselist) {
-          //     count += 1
-          // }
-        } else if (cmp(msg, BuildHatConst.RAMPDONE)) {
-          console.log("RAMPDONE", msg);
-          // with this.rampcond[portid]:
-          //     this.rampcond[portid].notify()
-        } else if (cmp(msg, BuildHatConst.PULSEDONE)) {
-          console.log("RAMPULSEDONEPDONE", msg);
-          // with this.pulsecond[portid]:
-          //     this.pulsecond[portid].notify()
-        }
-      }
-
-      // if( uselist && count === 4) {
-      //     with cond:
-      //         uselist = False
-      //         cond.notify()
-      // }
-
-      // if( ! uselist && cmp(line, BuildHatConst.DONE)) {
-      //     const runit = () => {
-      //         with cond:
-      //             cond.notify()
-      //     };
-      //     t = Timer(8.0, runit)
-      //     t.start()
-      // }
-
-      if (line[0] === "P" && (line[2] === "C" || line[2] === "M")) {
-        const portid = Number(line[1]);
-        const data: string[] = line.slice(5).split(" ");
-        const newdata: number[] = [];
-        data.forEach((d) => {
-          if (d !== "") {
-            newdata.push(Number(d));
-          }
-        });
-        console.log("data", portid, newdata);
-        // const callit = this.connections[portid].callit
-        // if( callit ) {
-        //     q.put([callit, newdata])
+    if (line[0] === "P" && line[2] == ":") {
+      // const portid = Number(line[1])
+      const [, msg] = line.split(":");
+      if (cmp(msg, BuildHatConst.CONNECTED)) {
+        console.log("connected", msg);
+        // typeid = Number(line[2 + len(BuildHatConst.CONNECTED):], 16)
+        // this.connections[portid].update(typeid, True)
+        // if( typeid == 64) {
+        //     this.write(f"port {portid} ; on\r".encode())
         // }
-        // this.connections[portid].data = newdata
-        // with this.portcond[portid]:
-        //     this.portcond[portid].notify()
+        // if (uselist) {
+        //     count += 1
+        // }
+      } else if (cmp(msg, BuildHatConst.CONNECTEDPASSIVE)) {
+        console.log("connect passive", msg);
+        // typeid = int(line[2 + len(BuildHatConst.CONNECTEDPASSIVE):], 16)
+        // this.connections[portid].update(typeid, True)
+        // if (uselist) {
+        //     count += 1
+        // }
+      } else if (cmp(msg, BuildHatConst.DISCONNECTED)) {
+        console.log("disconnected", msg);
+        // this.connections[portid].update(-1, false)
+      } else if (cmp(msg, BuildHatConst.DEVTIMEOUT)) {
+        console.log("DEVTIMEOUT", msg);
+        // this.connections[portid].update(-1, false)
+      } else if (cmp(msg, BuildHatConst.NOTCONNECTED)) {
+        console.log("NOTCONNECTED", msg);
+        // this.connections[portid].update(-1, false)
+        // if( uselist) {
+        //     count += 1
+        // }
+      } else if (cmp(msg, BuildHatConst.RAMPDONE)) {
+        console.log("RAMPDONE", msg);
+        // with this.rampcond[portid]:
+        //     this.rampcond[portid].notify()
+      } else if (cmp(msg, BuildHatConst.PULSEDONE)) {
+        console.log("RAMPULSEDONEPDONE", msg);
+        // with this.pulsecond[portid]:
+        //     this.pulsecond[portid].notify()
       }
+    }
 
-      if (line.length >= 5 && line[1] === "." && line.endsWith(" V")) {
-        const vin = Number(line.split(" ")[0]);
-        // this.vin = vin
-        console.log("vin", vin);
-        // with this.vincond:
-        //     this.vincond.notify()
-      }
-    });
+    // if( uselist && count === 4) {
+    //     with cond:
+    //         uselist = False
+    //         cond.notify()
+    // }
+
+    // if( ! uselist && cmp(line, BuildHatConst.DONE)) {
+    //     const runit = () => {
+    //         with cond:
+    //             cond.notify()
+    //     };
+    //     t = Timer(8.0, runit)
+    //     t.start()
+    // }
+
+    if (line[0] === "P" && (line[2] === "C" || line[2] === "M")) {
+      const portid = Number(line[1]);
+      const data: string[] = line.slice(5).split(" ");
+      const newdata: number[] = [];
+      data.forEach((d) => {
+        if (d !== "") {
+          newdata.push(Number(d));
+        }
+      });
+      console.log("data", portid, newdata);
+      // const callit = this.connections[portid].callit
+      // if( callit ) {
+      //     q.put([callit, newdata])
+      // }
+      // this.connections[portid].data = newdata
+      // with this.portcond[portid]:
+      //     this.portcond[portid].notify()
+    }
+
+    if (line.length >= 5 && line[1] === "." && line.endsWith(" V")) {
+      const vin = Number(line.split(" ")[0]);
+      // this.vin = vin
+      console.log("vin", vin);
+      // with this.vincond:
+      //     this.vincond.notify()
+    }
   }
 }
