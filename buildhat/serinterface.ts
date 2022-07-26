@@ -11,6 +11,7 @@
 // import serial
 // from gpiozero import DigitalOutputDevice
 import rpio from "rpio";
+import Bluebird from "bluebird";
 
 // from .exc import BuildHATError
 
@@ -116,6 +117,12 @@ export class BuildHAT extends EventEmitter {
   // private vin: any;
   private ser!: SerialPort;
   private parser!: ReadlineParser;
+  private ports: (number | undefined)[] = [
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+  ];
 
   constructor() {
     super();
@@ -416,17 +423,19 @@ export class BuildHAT extends EventEmitter {
       // const turnoff = "";
 
       this.removeAllListeners();
-      // [0, 1, 2, 3].forEach((p) => {
-      //   const conn = this.connections[p];
-      //   if (conn.typeid != 64) {
-      //     turnoff += `port ${p} ; pwm ; coast ; off ;`;
-      //   } else {
-      //     // const hexstr = ' '.join(f'{h:x}' for h in [0xc2, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-      //     const hexstr = " c2000000000000000000";
-      //     this.writeStr(`port ${p} ; write1 ${hexstr}\r`);
-      //   }
-      // });
-      // await this.writeStr(`${turnoff}\r`);
+      const turnOffCmds = this.ports
+        .filter((typeId) => typeId !== undefined)
+        .map((typeId, portId) => {
+          if (typeId !== 64) {
+            return `port ${portId} ; pwm ; coast ; off \r`;
+          } else {
+            const hexstr = " c2000000000000000000";
+            return `port ${portId} ; write1 ${hexstr}\r`;
+          }
+        });
+      if (turnOffCmds.length) {
+        await Bluebird.each(turnOffCmds, (cmd) => this.writeStr(cmd));
+      }
       await this.writeStr(
         "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
       );
@@ -481,6 +490,7 @@ export class BuildHAT extends EventEmitter {
         const type = connectedMatch[1] as "active" | "passive";
         const typeId = Number(connectedMatch[2]);
         debug({ connected: 1, portId, typeId, type });
+        this.ports[portId] = typeId;
 
         this.emit("connected", portId, typeId);
 
@@ -501,15 +511,18 @@ export class BuildHAT extends EventEmitter {
         //   // }
       } else if (/: disconnected/.test(line)) {
         debug({ disconnected: 1, portId });
+        this.ports[portId] = undefined;
         // this.connections[portid].update(-1, false)
 
         this.emit("disconnected", portId);
       } else if (/: timeout during data phase: disconnecting/.test(line)) {
         debug({ timeout: 1, portId });
+        this.ports[portId] = undefined;
         this.emit("timeout", portId);
         // this.connections[portid].update(-1, false)
       } else if (/: no device detected/.test(line)) {
         this.emit("notConnected", portId);
+        this.ports[portId] = undefined;
         debug({ notConnected: 1, portId });
         // this.connections[portid].update(-1, false)
         // if( uselist) {
