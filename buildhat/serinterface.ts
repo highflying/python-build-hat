@@ -225,7 +225,7 @@ export class BuildHAT {
       } else if (currentState === HatState.BOOTLOADER) {
         debug("bootloader");
         await this.loadfirmware(firmware, signature);
-      } else {
+      } else if (currentState !== HatState.FIRMWARE) {
         throw new Error("Unknown state");
       }
 
@@ -240,21 +240,21 @@ export class BuildHAT {
       // this.th.daemon = True
       // this.th.start()
 
-      if (this.state === HatState.FIRMWARE) {
+      if (currentState === HatState.FIRMWARE) {
         debug("Selecting ports");
         await this.writeStr(
           "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
         );
         await this.writeStr("list\r");
       } else if (
-        this.state === HatState.NEEDNEWFIRMWARE ||
-        this.state === HatState.BOOTLOADER
+        currentState === HatState.NEEDNEWFIRMWARE ||
+        currentState === HatState.BOOTLOADER
       ) {
         debug("Rebooting for new firmware");
         await this.writeStr("reboot\r");
       }
 
-      debug("init done");
+      debug("init done", currentState);
       // # wait for initialisation to finish
       // with this.cond:
       //     this.cond.wait()
