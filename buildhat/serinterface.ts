@@ -423,16 +423,18 @@ export class BuildHAT extends EventEmitter {
       // const turnoff = "";
 
       this.removeAllListeners();
-      const turnOffCmds = this.ports
-        .filter((typeId) => typeId !== undefined)
-        .map((typeId, portId) => {
-          if (typeId !== 64) {
-            return `port ${portId} ; pwm ; coast ; off \r`;
-          } else {
-            const hexstr = " c2000000000000000000";
-            return `port ${portId} ; write1 ${hexstr}\r`;
-          }
-        });
+      const turnOffCmds = this.ports.map((typeId, portId) => {
+        if (typeId === undefined) {
+          return;
+        }
+
+        if (typeId !== 64) {
+          return `port ${portId} ; pwm ; coast ; off \r`;
+        } else {
+          const hexstr = " c2000000000000000000";
+          return `port ${portId} ; write1 ${hexstr}\r`;
+        }
+      });
       if (turnOffCmds.length) {
         await Bluebird.each(turnOffCmds, (cmd) => this.writeStr(cmd));
       }
