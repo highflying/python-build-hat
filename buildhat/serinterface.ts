@@ -374,12 +374,10 @@ export class BuildHAT extends EventEmitter {
     // :param log: Whether to log line or not
     // :param replace: Whether to log an alternative string
     // """
-    if (!this.fin) {
-      if (replace) {
-        debug(`> ${replace}`);
-      } else {
-        debug(`> ${data.toString("utf-8")}`);
-      }
+    if (replace) {
+      debug(`> ${replace}`);
+    } else {
+      debug(`> ${data.toString("utf-8")}`);
     }
 
     await new Promise<void>((resolve, reject) => {
