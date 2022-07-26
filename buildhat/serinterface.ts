@@ -415,7 +415,7 @@ export class BuildHAT extends EventEmitter {
     if (!this.fin) {
       this.fin = true;
       this.running = false;
-      const turnoff = "";
+      // const turnoff = "";
 
       this.removeAllListeners();
       // [0, 1, 2, 3].forEach((p) => {
@@ -428,8 +428,8 @@ export class BuildHAT extends EventEmitter {
       //     this.writeStr(`port ${p} ; write1 ${hexstr}\r`);
       //   }
       // });
-      this.writeStr(`${turnoff}\r`);
-      this.writeStr(
+      // await this.writeStr(`${turnoff}\r`);
+      await this.writeStr(
         "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
       );
       return new Promise<void>((resolve, reject) =>
