@@ -410,12 +410,14 @@ export class BuildHAT extends EventEmitter {
   //     return line
   // }
 
-  public shutdown() {
+  public async shutdown() {
     // """Turn off the Build HAT devices"""
     if (!this.fin) {
       this.fin = true;
       this.running = false;
       const turnoff = "";
+
+      this.removeAllListeners();
       // [0, 1, 2, 3].forEach((p) => {
       //   const conn = this.connections[p];
       //   if (conn.typeid != 64) {
@@ -429,6 +431,9 @@ export class BuildHAT extends EventEmitter {
       this.writeStr(`${turnoff}\r`);
       this.writeStr(
         "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
+      );
+      return new Promise<void>((resolve, reject) =>
+        this.ser.close((err) => (err ? reject(err) : resolve()))
       );
     }
   }
