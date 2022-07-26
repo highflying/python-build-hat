@@ -11,9 +11,9 @@ const main = async () => {
 
   ser.on("connected", (...args) => console.log("event", args));
 
-  process.on("SIGINT", () => {
-    ser.removeAllListeners();
-    ser.shutdown();
+  process.on("SIGINT", async () => {
+    await ser.shutdown();
+    process.exit(1);
   });
 };
 
