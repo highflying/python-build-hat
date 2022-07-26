@@ -463,8 +463,15 @@ export class BuildHAT {
     if (line[0] === "P" && line[2] == ":") {
       // const portid = Number(line[1])
       const [, msg] = line.split(":");
-      if (cmp(msg, BuildHatConst.CONNECTED)) {
-        console.log("connected", msg);
+      const portId = Number(line[1]);
+
+      const connectedMatch = /connected to (active|passive) ID (\d+)/.exec(
+        line
+      );
+      if (connectedMatch && connectedMatch[1] && connectedMatch[2]) {
+        const type = connectedMatch[1] as "active" | "passive";
+        const typeId = Number(connectedMatch[2]);
+        debug({ connected: 1, portId, typeId, type });
         // typeid = Number(line[2 + len(BuildHatConst.CONNECTED):], 16)
         // this.connections[portid].update(typeid, True)
         // if( typeid == 64) {
@@ -473,31 +480,31 @@ export class BuildHAT {
         // if (uselist) {
         //     count += 1
         // }
-      } else if (cmp(msg, BuildHatConst.CONNECTEDPASSIVE)) {
-        console.log("connect passive", msg);
-        // typeid = int(line[2 + len(BuildHatConst.CONNECTEDPASSIVE):], 16)
-        // this.connections[portid].update(typeid, True)
-        // if (uselist) {
-        //     count += 1
-        // }
-      } else if (cmp(msg, BuildHatConst.DISCONNECTED)) {
-        console.log("disconnected", msg);
+        // } else if (cmp(msg, BuildHatConst.CONNECTEDPASSIVE)) {
+        //   console.log("connect passive", msg);
+        //   // typeid = int(line[2 + len(BuildHatConst.CONNECTEDPASSIVE):], 16)
+        //   // this.connections[portid].update(typeid, True)
+        //   // if (uselist) {
+        //   //     count += 1
+        //   // }
+      } else if (/: disconnected/.test(line)) {
+        debug({ disconnected: 1, portId });
         // this.connections[portid].update(-1, false)
-      } else if (cmp(msg, BuildHatConst.DEVTIMEOUT)) {
-        console.log("DEVTIMEOUT", msg);
+      } else if (/: timeout during data phase: disconnecting/.test(line)) {
+        debug({ timeout: 1, portId });
         // this.connections[portid].update(-1, false)
-      } else if (cmp(msg, BuildHatConst.NOTCONNECTED)) {
-        console.log("NOTCONNECTED", msg);
+      } else if (/: no device detected/.test(line)) {
+        debug({ notConnected: 1, portId });
         // this.connections[portid].update(-1, false)
         // if( uselist) {
         //     count += 1
         // }
       } else if (cmp(msg, BuildHatConst.RAMPDONE)) {
-        console.log("RAMPDONE", msg);
+        debug("RAMPDONE", msg);
         // with this.rampcond[portid]:
         //     this.rampcond[portid].notify()
       } else if (cmp(msg, BuildHatConst.PULSEDONE)) {
-        console.log("RAMPULSEDONEPDONE", msg);
+        debug("RAMPULSEDONEPDONE", msg);
         // with this.pulsecond[portid]:
         //     this.pulsecond[portid].notify()
       }
