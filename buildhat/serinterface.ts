@@ -18,6 +18,7 @@ import DebugFactory from "debug";
 import { SerialPort } from "serialport";
 import { promises as fs } from "fs";
 import { ReadlineParser } from "@serialport/parser-readline";
+import EventEmitter from "events";
 
 const debug = DebugFactory("buildhat:serinterface");
 
@@ -86,7 +87,7 @@ enum BuildHatConst {
   BOOT0_GPIO_NUMBER = 22,
 }
 
-export class BuildHAT {
+export class BuildHAT extends EventEmitter {
   // """Interacts with Build HAT via UART interface"""
 
   // CONNECTED = ": connected to active ID"
@@ -117,6 +118,8 @@ export class BuildHAT {
   private parser!: ReadlineParser;
 
   constructor() {
+    super();
+
     // """Interact with Build HAT
 
     // :param firmware: Firmware file
@@ -227,7 +230,9 @@ export class BuildHAT {
         debug("bootloader");
         await this.loadfirmware(firmware, signature);
       } else if (currentState !== HatState.FIRMWARE) {
-        throw new Error("Unknown state");
+        const error = new Error("Unknown state");
+        this.emit("error", error);
+        throw error;
       }
 
       // this.cbqueue = queue.Queue()
@@ -249,6 +254,7 @@ export class BuildHAT {
           "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
         );
         await this.writeStr("list\r");
+        this.emit("ready");
       } else if (
         currentState === HatState.NEEDNEWFIRMWARE ||
         currentState === HatState.BOOTLOADER
@@ -472,6 +478,9 @@ export class BuildHAT {
         const type = connectedMatch[1] as "active" | "passive";
         const typeId = Number(connectedMatch[2]);
         debug({ connected: 1, portId, typeId, type });
+
+        this.emit("connected", portId, typeId);
+
         // typeid = Number(line[2 + len(BuildHatConst.CONNECTED):], 16)
         // this.connections[portid].update(typeid, True)
         // if( typeid == 64) {
@@ -490,10 +499,14 @@ export class BuildHAT {
       } else if (/: disconnected/.test(line)) {
         debug({ disconnected: 1, portId });
         // this.connections[portid].update(-1, false)
+
+        this.emit("disconnected", portId);
       } else if (/: timeout during data phase: disconnecting/.test(line)) {
         debug({ timeout: 1, portId });
+        this.emit("timeout", portId);
         // this.connections[portid].update(-1, false)
       } else if (/: no device detected/.test(line)) {
+        this.emit("notConnected", portId);
         debug({ notConnected: 1, portId });
         // this.connections[portid].update(-1, false)
         // if( uselist) {

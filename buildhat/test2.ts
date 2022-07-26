@@ -8,6 +8,8 @@ const main = async () => {
   const ser = await BuildHAT.factory(firmwarePath, signaturePath, version);
 
   console.log(ser);
+
+  ser.on("*", (...args) => console.log("event", args));
 };
 
 main();
