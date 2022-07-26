@@ -9,7 +9,9 @@ const main = async () => {
 
   console.log(ser);
 
-  ser.on("*", (...args) => console.log("event", args));
+  ser.on("connected", (...args) => console.log("event", args));
+
+  process.on("SIGINT", () => ser.shutdown());
 };
 
 main();
