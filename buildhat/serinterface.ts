@@ -191,7 +191,7 @@ export class BuildHAT {
           const data = await this.read();
 
           if (cmp(data, BuildHatConst.FIRMWARE)) {
-            const versionRegex = new RegExp(`^${BuildHatConst.FIRMWARE}(\d+)`);
+            const versionRegex = new RegExp(`^${BuildHatConst.FIRMWARE}(\\d+)`);
             const match = versionRegex.exec(data);
             debug("version match", versionRegex, data, match);
             if (match && match[1] && Number(match[1]) === version) {
