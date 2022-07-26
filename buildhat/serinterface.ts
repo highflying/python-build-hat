@@ -455,7 +455,7 @@ export class BuildHAT {
     // :param q: Queue for callback events
     // """
 
-    debug("< ${line}");
+    debug(`< ${line}`);
     if (line.length === 0) {
       return;
     }
