@@ -1,0 +1,10 @@
+export { ColorDistanceSensor } from "./ColorDistanceSensor";
+export { ColorSensor } from "./ColorSensor";
+export { DistanceSensor } from "./DistanceSensor";
+export { ForceSensor } from "./ForceSensor";
+export { Light } from "./Light";
+export { Matrix } from "./Matrix";
+export { MotionSensor } from "./MotionSensor";
+export { Motor } from "./Motor";
+export { PassiveMotor } from "./PassiveMotor";
+export { TiltSensor } from "./TiltSensor";
