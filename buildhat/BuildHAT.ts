@@ -79,89 +79,97 @@ export class BuildHAT extends EventEmitter {
     });
 
     let incdata = 0;
-    this.ser.open(async (err) => {
-      if (err) {
-        throw err;
-      }
 
-      this.parser = this.ser.pipe(new ReadlineParser({ delimiter: "\r\n" }));
-
-      const checkFirmware = (data: string): HatState | undefined => {
-        const versionRegex = new RegExp(`^Firmware version: (\\d+)`);
-        const match = versionRegex.exec(data);
-        debug("version match", versionRegex, data, match);
-        if (match && match[1]) {
-          if (Number(match[1]) === version) {
-            return HatState.FIRMWARE;
-          }
-
-          return HatState.NEEDNEWFIRMWARE;
-        }
-
-        if (/BuildHAT bootloader version/.test(data)) {
-          return HatState.BOOTLOADER;
-        }
-
-        return;
-      };
-
-      await this.writeStr("version\r");
-
-      while (true) {
-        const data = await this.read();
-
-        // # Check if we're in the bootloader or the firmware
-        const currentState = checkFirmware(data);
-
-        if (currentState === HatState.NEEDNEWFIRMWARE) {
-          debug("new new firmware");
-          await this.resetHAT();
-          await this.loadFirmware(firmware, signature);
-        } else if (currentState === HatState.BOOTLOADER) {
-          debug("bootloader");
-          await this.loadFirmware(firmware, signature);
-        } else if (currentState !== HatState.FIRMWARE) {
-          const error = new Error("Unknown state");
-          this.emit("error", error);
-          throw error;
-        }
-
-        if (currentState === HatState.FIRMWARE) {
-          debug("Setting up listener");
-          this.parser.on("data", (data) => this.eventListener(data));
-          debug("Selecting ports");
-          await this.writeStr(
-            "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
-          );
-          await this.writeStr("list\r");
-          this.emit("ready");
+    await new Promise<void>((resolve, reject) =>
+      this.ser.open(async (err) => {
+        if (err) {
+          reject(err);
           return;
         }
 
-        if (
-          currentState === HatState.NEEDNEWFIRMWARE ||
-          currentState === HatState.BOOTLOADER
-        ) {
-          debug("Rebooting for new firmware");
-          await this.writeStr("reboot\r");
-          await pause(5000);
-        }
+        this.parser = this.ser.pipe(new ReadlineParser({ delimiter: "\r\n" }));
 
-        // # got other data we didn't understand - send version again
-        incdata += 1;
-        if (incdata > 5) {
-          throw new Error("Build HAT not found");
-        } else {
-          await this.writeStr("version\r");
-        }
+        const checkFirmware = (data: string): HatState | undefined => {
+          const versionRegex = new RegExp(`^Firmware version: (\\d+)`);
+          const match = versionRegex.exec(data);
+          debug("version match", versionRegex, data, match);
+          if (match && match[1]) {
+            if (Number(match[1]) === version) {
+              return HatState.FIRMWARE;
+            }
 
-        debug("init done", currentState);
-      }
-    });
+            return HatState.NEEDNEWFIRMWARE;
+          }
+
+          if (/BuildHAT bootloader version/.test(data)) {
+            return HatState.BOOTLOADER;
+          }
+
+          return;
+        };
+
+        debug("Starting init");
+        await this.writeStr("version\r");
+
+        while (true) {
+          const data = await this.read();
+
+          // # Check if we're in the bootloader or the firmware
+          const currentState = checkFirmware(data);
+
+          if (currentState === HatState.NEEDNEWFIRMWARE) {
+            debug("new new firmware");
+            await this.resetHAT();
+            await this.loadFirmware(firmware, signature);
+          } else if (currentState === HatState.BOOTLOADER) {
+            debug("bootloader");
+            await this.loadFirmware(firmware, signature);
+          } else if (currentState !== HatState.FIRMWARE) {
+            debug("unknown state");
+            // const error = new Error("Unknown state");
+            // this.emit("error", error);
+            // throw error;
+          }
+
+          if (currentState === HatState.FIRMWARE) {
+            debug("Setting up listener");
+            this.parser.on("data", (data) => this.eventListener(data));
+            debug("Selecting ports");
+            await this.writeStr(
+              "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
+            );
+            await this.writeStr("list\r");
+            this.emit("ready");
+            resolve();
+            return;
+          }
+
+          if (
+            currentState === HatState.NEEDNEWFIRMWARE ||
+            currentState === HatState.BOOTLOADER
+          ) {
+            debug("Rebooting for new firmware");
+            await this.writeStr("reboot\r");
+            await pause(5000);
+          }
+
+          // # got other data we didn't understand - send version again
+          incdata += 1;
+          if (incdata > 5) {
+            reject(new Error("Build HAT not found"));
+            return;
+          } else {
+            await this.writeStr("version\r");
+          }
+
+          debug("init loop end", currentState);
+        }
+      })
+    );
   }
 
   public async resetHAT() {
-    // """Reset the HAT"""
+    debug("Resetting BuildHAT");
 
     const RESET_GPIO_NUMBER = 4;
     const BOOT0_GPIO_NUMBER = 22;
@@ -170,22 +178,29 @@ export class BuildHAT extends EventEmitter {
       mapping: "gpio",
     });
 
+    debug("Opening GPIO");
     rpio.open(RESET_GPIO_NUMBER, rpio.OUTPUT);
     rpio.open(BOOT0_GPIO_NUMBER, rpio.OUTPUT);
 
+    debug("Writing to GPIO");
     rpio.write(BOOT0_GPIO_NUMBER, rpio.LOW);
     rpio.write(RESET_GPIO_NUMBER, rpio.LOW);
 
-    await pause(10);
+    debug("Pause");
+    await pause(10_000);
 
+    debug("Writing to GPIO");
     rpio.write(RESET_GPIO_NUMBER, rpio.HIGH);
 
-    await pause(10);
+    debug("Pause");
+    await pause(10_000);
 
+    debug("Closing GPIO");
     rpio.close(BOOT0_GPIO_NUMBER);
     rpio.close(RESET_GPIO_NUMBER);
 
-    await pause(500);
+    debug("Pause");
+    await pause(1_000);
 
     rpio.exit();
   }
