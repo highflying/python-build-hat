@@ -14,8 +14,8 @@ export type DataMap<T extends string = string> = Record<
   (data: number[]) => number | number[]
 >;
 
-const UNKNOWN_DEVICE = "Unknown";
-const DISCONNECTED_DEVICE = "Disconnected";
+// const UNKNOWN_DEVICE = "Unknown";
+// const DISCONNECTED_DEVICE = "Disconnected";
 
 export class Device extends EventEmitter {
   // """Creates a single instance of the buildhat for all devices to use"""
@@ -250,7 +250,7 @@ export class Device extends EventEmitter {
     } else {
       throw new Error("Not in simple or combimode");
     }
-    return this._write(`port ${this.port} ; select {idx}\r`);
+    return this._write(`port ${this.port} ; select ${idx}\r`);
   }
 
   public switchOn() {
