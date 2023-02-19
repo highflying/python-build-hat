@@ -9,7 +9,12 @@ import { ReadlineParser } from "@serialport/parser-readline";
 
 import EventEmitter from "events";
 import { Device } from "./Device";
-import { DeviceFactory, DeviceID, validateDeviceId } from "./device-map";
+import {
+  DeviceFactory,
+  DeviceID,
+  DeviceMap,
+  validateDeviceId,
+} from "./device-map";
 import { calcChecksum, pause } from "./utils";
 
 const debug = DebugFactory("buildhat:serinterface");
@@ -20,6 +25,13 @@ export enum Port {
   "C" = 2,
   "D" = 3,
 }
+
+const portMapper: Record<string, "A" | "B" | "C" | "D"> = {
+  0: "A",
+  1: "B",
+  2: "C",
+  3: "D",
+};
 
 enum HatState {
   // """Current state that hat is in"""
@@ -52,9 +64,50 @@ export class BuildHAT extends EventEmitter {
   ) {
     const instance = new BuildHAT();
 
+    let resolve: () => void = () => {
+      return;
+    };
+    let connectCount = 0;
+
+    const promise = new Promise<void>((r) => {
+      resolve = r;
+    });
+
+    const listener = (portId: number) => {
+      console.log("got event for", portId);
+      connectCount++;
+      if (connectCount >= 4) {
+        resolve();
+      }
+    };
+    instance.on("connected", listener);
+    instance.on("disconnected", listener);
+    instance.on("notConnected", listener);
+
     await instance.init(firmware, signature, version, device);
 
+    await promise;
+
+    instance.off("connected", listener);
+    instance.off("disconnected", listener);
+    instance.off("notConnected", listener);
+
     return instance;
+  }
+
+  public getDevices() {
+    return Object.entries(this.ports)
+      .filter((port): port is [string, DeviceID] => port[1] !== undefined)
+      .map(([portId, deviceId]) => {
+        const device = DeviceMap[deviceId];
+
+        return {
+          portId,
+          portName: portMapper[portId],
+          deviceId,
+          deviceType: "typeName" in device ? device.typeName : device.name,
+        };
+      });
   }
 
   public async read() {
@@ -314,7 +367,7 @@ export class BuildHAT extends EventEmitter {
         const deviceId = validateDeviceId(typeId);
         this.ports[portId] = deviceId;
 
-        this.emit("connected", portId, typeId);
+        this.emit("connected", portId, typeId, deviceId);
 
         const callback = this.connectQueue[portId];
         if (callback) {

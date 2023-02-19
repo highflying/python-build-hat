@@ -46,6 +46,10 @@ const dataMap: DataMap<Event> = {
 };
 
 export class ColorDistanceSensor extends Device {
+  static get typeName() {
+    return "COLOR_DISTANCE_SENSOR";
+  }
+
   constructor(hat: BuildHAT, port: Port, deviceId: DeviceID) {
     super(hat, port, deviceId, modeMap, dataMap);
   }

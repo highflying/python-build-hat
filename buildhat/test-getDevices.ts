@@ -1,5 +1,6 @@
-import { BuildHAT, Port, ColorDistanceSensor } from "./index";
+import { BuildHAT } from "./index";
 import * as path from "path";
+import { pause } from "./utils";
 
 const main = async () => {
   const firmwarePath = path.join(__dirname, "./data/firmware.bin");
@@ -12,15 +13,13 @@ const main = async () => {
     process.exit(1);
   });
 
-  const device1 = (await ser.waitForDeviceAtPort(
-    Port.C
-  )) as ColorDistanceSensor;
-  const device2 = (await ser.waitForDeviceAtPort(
-    Port.D
-  )) as ColorDistanceSensor;
+  // ser.on("connected", (portId, typeId) => console.log(portId, typeId));
+  // ser.on("data", (data) => console.log(data));
+  // await pause(10_000);
+  const devices = ser.getDevices();
+  console.log(devices);
 
-  device1.on("distance", (data) => console.log("value 1", data));
-  device2.on("distance", (data) => console.log("value 2", data));
+  await ser.shutdown();
 };
 
 main();
