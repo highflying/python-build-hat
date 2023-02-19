@@ -110,6 +110,10 @@ export class BuildHAT extends EventEmitter {
       });
   }
 
+  public get typeName() {
+    return "BuildHAT";
+  }
+
   public async read() {
     return new Promise<string>((resolve) => {
       this.parser.once("data", (data) => {
