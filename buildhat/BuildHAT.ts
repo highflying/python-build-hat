@@ -16,8 +16,16 @@ import {
   validateDeviceId,
 } from "./device-map";
 import { calcChecksum, pause } from "./utils";
+import { HubPort } from "@yottabrick/layout-config";
 
 const debug = DebugFactory("buildhat:serinterface");
+
+export interface BuildHatPort {
+  portId: string;
+  portName: string;
+  deviceId: DeviceID;
+  deviceType: string;
+}
 
 export enum Port {
   "A" = 0,
@@ -95,7 +103,7 @@ export class BuildHAT extends EventEmitter {
     return instance;
   }
 
-  public getDevices() {
+  public getDevices(): BuildHatPort[] {
     return Object.entries(this.ports)
       .filter((port): port is [string, DeviceID] => port[1] !== undefined)
       .map(([portId, deviceId]) => {
@@ -110,7 +118,20 @@ export class BuildHAT extends EventEmitter {
       });
   }
 
+  public getDeviceAtPort(port: HubPort) {
+    const info = this.getDevices().find((device) => device.portName === port);
+    if (!info) {
+      return;
+    }
+
+    return DeviceFactory(this, info.deviceId, Number(info.portId) as Port);
+  }
+
   public get typeName() {
+    return "BuildHAT";
+  }
+
+  public get name() {
     return "BuildHAT";
   }
 

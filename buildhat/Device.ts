@@ -284,21 +284,4 @@ export class Device extends EventEmitter {
       this.once(event, (data) => resolve(data));
     });
   }
-
-  //   public callback(func?: () => void) {
-  //     // """Set callback function
-
-  //     // :param func: Callback function
-  //     // """
-  //     if (func) {
-  //       this.select();
-  //     } else {
-  //       this.deselect();
-  //     }
-  //     if (!func) {
-  //       this._conn.callit = undefined;
-  //     } else {
-  //       this._conn.callit = func;
-  //     }
-  //   }
 }

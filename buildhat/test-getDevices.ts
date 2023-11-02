@@ -1,6 +1,6 @@
 import { BuildHAT } from "./index";
 import * as path from "path";
-import { pause } from "./utils";
+// import { pause } from "./utils";
 
 const main = async () => {
   const firmwarePath = path.join(__dirname, "./data/firmware.bin");

@@ -32,6 +32,20 @@ export enum DeviceID {
   MediumAngularMotorGrey = 75,
   LargeAngularMotorGrey = 76,
 }
+
+export type BuildHatDevice = InstanceType<
+  | typeof ColorDistanceSensor
+  | typeof PassiveMotor
+  | typeof Light
+  | typeof TiltSensor
+  | typeof MotionSensor
+  | typeof Motor
+  | typeof ColorSensor
+  | typeof DistanceSensor
+  | typeof ForceSensor
+  | typeof Matrix
+>;
+
 export const DeviceMap = {
   [DeviceID.SimpleMotor]: PassiveMotor, // 45303
   [DeviceID.TrainMotor]: PassiveMotor, // 88011
@@ -77,10 +91,10 @@ export const DeviceFactory = <D extends DeviceID>(
   hat: BuildHAT,
   deviceId: D,
   port: Port
-): InstanceType<typeof DeviceMap[D]> => {
+): Promise<InstanceType<(typeof DeviceMap)[D]>> => {
   const device = DeviceMap[deviceId];
 
-  return device.factory(hat, port, deviceId) as InstanceType<
-    typeof DeviceMap[D]
+  return device.factory(hat, port, deviceId) as Promise<
+    InstanceType<(typeof DeviceMap)[D]>
   >;
 };
