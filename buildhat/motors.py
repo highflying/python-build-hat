@@ -3,6 +3,7 @@
 import threading
 import time
 from collections import deque
+from concurrent.futures import Future
 from enum import Enum
 from threading import Condition
 
@@ -26,7 +27,6 @@ class PassiveMotor(Device):
         self._default_speed = 20
         self._currentspeed = 0
         self.plimit(0.7)
-        self.bias(0.3)
 
     def set_default_speed(self, default_speed):
         """Set the default speed of the motor
@@ -71,17 +71,17 @@ class PassiveMotor(Device):
         """
         if not (plimit >= 0 and plimit <= 1):
             raise MotorError("plimit should be 0 to 1")
-        self._write(f"port {self.port} ; plimit {plimit}\r")
+        self._write(f"port {self.port} ; port_plimit {plimit}\r")
 
     def bias(self, bias):
         """Bias motor
 
         :param bias: Value 0 to 1
         :raises MotorError: Occurs if invalid bias value passed
-        """
-        if not (bias >= 0 and bias <= 1):
-            raise MotorError("bias should be 0 to 1")
-        self._write(f"port {self.port} ; bias {bias}\r")
+
+        .. deprecated:: 0.6.0
+        """  # noqa: RST303
+        raise MotorError("Bias no longer available")
 
 
 class MotorRunmode(Enum):
@@ -108,15 +108,30 @@ class Motor(Device):
         super().__init__(port)
         self.default_speed = 20
         self._currentspeed = 0
-        self.mode([(1, 0), (2, 0), (3, 0)])
+        if self._typeid in {38}:
+            self.mode([(1, 0), (2, 0)])
+            self._combi = "1 0 2 0"
+            self._noapos = True
+        else:
+            self.mode([(1, 0), (2, 0), (3, 0)])
+            self._combi = "1 0 2 0 3 0"
+            self._noapos = False
         self.plimit(0.7)
-        self.bias(0.3)
+        self.pwmparams(0.65, 0.01)
+        self._rpm = False
         self._release = True
         self._bqueue = deque(maxlen=5)
         self._cvqueue = Condition()
         self.when_rotated = None
         self._oldpos = None
         self._runmode = MotorRunmode.NONE
+
+    def set_speed_unit_rpm(self, rpm=False):
+        """Set whether to use RPM for speed units or not
+
+        :param rpm: Boolean to determine whether to use RPM for units
+        """
+        self._rpm = rpm
 
     def set_default_speed(self, default_speed):
         """Set the default speed of the motor
@@ -160,7 +175,10 @@ class Motor(Device):
         self._runmode = MotorRunmode.DEGREES
         data = self.get()
         pos = data[1]
-        apos = data[2]
+        if self._noapos:
+            apos = pos
+        else:
+            apos = data[2]
         diff = (degrees - apos + 180) % 360 - 180
         newpos = (pos + diff) / 360
         v1 = (degrees - apos) % 360
@@ -189,14 +207,18 @@ class Motor(Device):
         :param newpos: New motor postion in decimal rotations (from preset position)
         :param speed: -100 to 100
         """
-        # Collapse speed range to -5 to 5
-        speed *= 0.05
+        if self._rpm:
+            speed = self._speed_process(speed)
+        else:
+            speed *= 0.05  # Collapse speed range to -5 to 5
         dur = abs((newpos - pos) / speed)
-        cmd = (f"port {self.port}; combi 0 1 0 2 0 3 0 ; select 0 ; pid {self.port} 0 1 s4 0.0027777778 0 5 0 .1 3 ; "
+        cmd = (f"port {self.port}; select 0 ; selrate {self._interval}; "
+               f"pid {self.port} 0 1 s4 0.0027777778 0 5 0 .1 3 0.01; "
                f"set ramp {pos} {newpos} {dur} 0\r")
+        ftr = Future()
+        self._hat.rampftr[self.port].append(ftr)
         self._write(cmd)
-        with self._hat.rampcond[self.port]:
-            self._hat.rampcond[self.port].wait()
+        ftr.result()
         if self._release:
             time.sleep(0.2)
             self.coast()
@@ -217,10 +239,9 @@ class Motor(Device):
         if not (speed >= -100 and speed <= 100):
             raise MotorError("Invalid Speed")
         if not blocking:
-            th = threading.Thread(target=self._run_for_degrees, args=(degrees, speed))
-            th.daemon = True
-            th.start()
+            self._queue((self._run_for_degrees, (degrees, speed)))
         else:
+            self._wait_for_nonblocking()
             self._run_for_degrees(degrees, speed)
 
     def run_to_position(self, degrees, speed=None, blocking=True, direction="shortest"):
@@ -240,19 +261,25 @@ class Motor(Device):
         if degrees < -180 or degrees > 180:
             raise MotorError("Invalid angle")
         if not blocking:
-            th = threading.Thread(target=self._run_to_position, args=(degrees, speed, direction))
-            th.daemon = True
-            th.start()
+            self._queue((self._run_to_position, (degrees, speed, direction)))
         else:
+            self._wait_for_nonblocking()
             self._run_to_position(degrees, speed, direction)
 
     def _run_for_seconds(self, seconds, speed):
+        speed = self._speed_process(speed)
         self._runmode = MotorRunmode.SECONDS
-        cmd = (f"port {self.port} ; combi 0 1 0 2 0 3 0 ; select 0 ; pid {self.port} 0 0 s1 1 0 0.003 0.01 0 100; "
+        if self._rpm:
+            pid = f"pid_diff {self.port} 0 5 s2 0.0027777778 1 0 2.5 0 .4 0.01; "
+        else:
+            pid = f"pid {self.port} 0 0 s1 1 0 0.003 0.01 0 100 0.01;"
+        cmd = (f"port {self.port} ; select 0 ; selrate {self._interval}; "
+               f"{pid}"
                f"set pulse {speed} 0.0 {seconds} 0\r")
+        ftr = Future()
+        self._hat.pulseftr[self.port].append(ftr)
         self._write(cmd)
-        with self._hat.pulsecond[self.port]:
-            self._hat.pulsecond[self.port].wait()
+        ftr.result()
         if self._release:
             self.coast()
         self._runmode = MotorRunmode.NONE
@@ -271,10 +298,9 @@ class Motor(Device):
         if not (speed >= -100 and speed <= 100):
             raise MotorError("Invalid Speed")
         if not blocking:
-            th = threading.Thread(target=self._run_for_seconds, args=(seconds, speed))
-            th.daemon = True
-            th.start()
+            self._queue((self._run_for_seconds, (seconds, speed)))
         else:
+            self._wait_for_nonblocking()
             self._run_for_seconds(seconds, speed)
 
     def start(self, speed=None):
@@ -283,6 +309,7 @@ class Motor(Device):
         :param speed: Speed ranging from -100 to 100
         :raises MotorError: Occurs when invalid speed specified
         """
+        self._wait_for_nonblocking()
         if self._runmode == MotorRunmode.FREE:
             if self._currentspeed == speed:
                 # Already running at this speed, do nothing
@@ -296,9 +323,15 @@ class Motor(Device):
         else:
             if not (speed >= -100 and speed <= 100):
                 raise MotorError("Invalid Speed")
+        speed = self._speed_process(speed)
         cmd = f"port {self.port} ; set {speed}\r"
         if self._runmode == MotorRunmode.NONE:
-            cmd = (f"port {self.port} ; combi 0 1 0 2 0 3 0 ; select 0 ; pid {self.port} 0 0 s1 1 0 0.003 0.01 0 100; "
+            if self._rpm:
+                pid = f"pid_diff {self.port} 0 5 s2 0.0027777778 1 0 2.5 0 .4 0.01; "
+            else:
+                pid = f"pid {self.port} 0 0 s1 1 0 0.003 0.01 0 100 0.01; "
+            cmd = (f"port {self.port} ; select 0 ; selrate {self._interval}; "
+                   f"{pid}"
                    f"set {speed}\r")
         self._runmode = MotorRunmode.FREE
         self._currentspeed = speed
@@ -306,6 +339,7 @@ class Motor(Device):
 
     def stop(self):
         """Stop motor"""
+        self._wait_for_nonblocking()
         self._runmode = MotorRunmode.NONE
         self._currentspeed = 0
         self.coast()
@@ -324,7 +358,10 @@ class Motor(Device):
         :return: Absolute position of motor from -180 to 180
         :rtype: int
         """
-        return self.get()[2]
+        if self._noapos:
+            raise MotorError("No absolute position with this motor")
+        else:
+            return self.get()[2]
 
     def get_speed(self):
         """Get speed of motor
@@ -346,7 +383,11 @@ class Motor(Device):
         return self._when_rotated
 
     def _intermediate(self, data):
-        speed, pos, apos = data
+        if self._noapos:
+            speed, pos = data
+            apos = None
+        else:
+            speed, pos, apos = data
         if self._oldpos is None:
             self._oldpos = pos
             return
@@ -372,17 +413,30 @@ class Motor(Device):
         """
         if not (plimit >= 0 and plimit <= 1):
             raise MotorError("plimit should be 0 to 1")
-        self._write(f"port {self.port} ; plimit {plimit}\r")
+        self._write(f"port {self.port} ; port_plimit {plimit}\r")
 
     def bias(self, bias):
         """Bias motor
 
         :param bias: Value 0 to 1
         :raises MotorError: Occurs if invalid bias value passed
+
+        .. deprecated:: 0.6.0
+        """  # noqa: RST303
+        raise MotorError("Bias no longer available")
+
+    def pwmparams(self, pwmthresh, minpwm):
+        """PWM thresholds
+
+        :param pwmthresh: Value 0 to 1, threshold below, will switch from fast to slow, PWM
+        :param minpwm: Value 0 to 1, threshold below which it switches off the drive altogether
+        :raises MotorError: Occurs if invalid values are passed
         """
-        if not (bias >= 0 and bias <= 1):
-            raise MotorError("bias should be 0 to 1")
-        self._write(f"port {self.port} ; bias {bias}\r")
+        if not (pwmthresh >= 0 and pwmthresh <= 1):
+            raise MotorError("pwmthresh should be 0 to 1")
+        if not (minpwm >= 0 and minpwm <= 1):
+            raise MotorError("minpwm should be 0 to 1")
+        self._write(f"port {self.port} ; pwmparams {pwmthresh} {minpwm}\r")
 
     def pwm(self, pwmv):
         """PWM motor
@@ -401,6 +455,42 @@ class Motor(Device):
     def float(self):
         """Float motor"""
         self.pwm(0)
+
+    @property
+    def release(self):
+        """Determine if motor is released after running, so can be turned by hand
+
+        :getter: Returns whether motor is released, so can be turned by hand
+        :setter: Sets whether motor is released, so can be turned by hand
+        :return: Whether motor is released, so can be turned by hand
+        :rtype: bool
+        """
+        return self._release
+
+    @release.setter
+    def release(self, value):
+        """Determine if the motor is released after running, so can be turned by hand
+
+        :param value: Whether motor should be released, so can be turned by hand
+        :type value: bool
+        """
+        if not isinstance(value, bool):
+            raise MotorError("Must pass boolean")
+        self._release = value
+
+    def _queue(self, cmd):
+        Device._instance.motorqueue[self.port].put(cmd)
+
+    def _wait_for_nonblocking(self):
+        """Wait for nonblocking commands to finish"""
+        Device._instance.motorqueue[self.port].join()
+
+    def _speed_process(self, speed):
+        """Lower speed value"""
+        if self._rpm:
+            return speed / 60
+        else:
+            return speed
 
 
 class MotorPair:
@@ -421,6 +511,8 @@ class MotorPair:
         self._leftmotor = Motor(leftport)
         self._rightmotor = Motor(rightport)
         self.default_speed = 20
+        self._release = True
+        self._rpm = False
 
     def set_default_speed(self, default_speed):
         """Set the default speed of the motor
@@ -428,6 +520,15 @@ class MotorPair:
         :param default_speed: Speed ranging from -100 to 100
         """
         self.default_speed = default_speed
+
+    def set_speed_unit_rpm(self, rpm=False):
+        """Set whether to use RPM for speed units or not
+
+        :param rpm: Boolean to determine whether to use RPM for units
+        """
+        self._rpm = rpm
+        self._leftmotor.set_speed_unit_rpm(rpm)
+        self._rightmotor.set_speed_unit_rpm(rpm)
 
     def run_for_rotations(self, rotations, speedl=None, speedr=None):
         """Run pair of motors for N rotations
@@ -520,3 +621,27 @@ class MotorPair:
         th2.start()
         th1.join()
         th2.join()
+
+    @property
+    def release(self):
+        """Determine if motors are released after running, so can be turned by hand
+
+        :getter: Returns whether motors are released, so can be turned by hand
+        :setter: Sets whether motors are released, so can be turned by hand
+        :return: Whether motors are released, so can be turned by hand
+        :rtype: bool
+        """
+        return self._release
+
+    @release.setter
+    def release(self, value):
+        """Determine if motors are released after running, so can be turned by hand
+
+        :param value: Whether motors should be released, so can be turned by hand
+        :type value: bool
+        """
+        if not isinstance(value, bool):
+            raise MotorError("Must pass boolean")
+        self._release = value
+        self._leftmotor.release = value
+        self._rightmotor.release = value

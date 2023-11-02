@@ -31,6 +31,8 @@ class Connection:
         self.typeid = -1
         self.connected = False
         self.callit = None
+        self.simplemode = -1
+        self.combimode = -1
 
     def update(self, typeid, connected, callit=None):
         """Update connection information for port
@@ -84,23 +86,24 @@ class BuildHAT:
         self.cond = Condition()
         self.state = HatState.OTHER
         self.connections = []
-        self.portcond = []
-        self.pulsecond = []
-        self.rampcond = []
+        self.portftr = []
+        self.pulseftr = []
+        self.rampftr = []
+        self.vinftr = []
+        self.motorqueue = []
         self.fin = False
         self.running = True
-        self.vincond = Condition()
-        self.vin = None
         if debug:
             tmp = tempfile.NamedTemporaryFile(suffix=".log", prefix="buildhat-", delete=False)
             logging.basicConfig(filename=tmp.name, format='%(asctime)s %(message)s',
-                                level=logging.INFO)
+                                level=logging.DEBUG)
 
         for _ in range(4):
             self.connections.append(Connection())
-            self.portcond.append(Condition())
-            self.pulsecond.append(Condition())
-            self.rampcond.append(Condition())
+            self.portftr.append([])
+            self.pulseftr.append([])
+            self.rampftr.append([])
+            self.motorqueue.append(queue.Queue())
 
         self.ser = serial.Serial(device, 115200, timeout=5)
         # Check if we're in the bootloader or the firmware
@@ -150,15 +153,22 @@ class BuildHAT:
         self.cb.daemon = True
         self.cb.start()
 
+        for q in self.motorqueue:
+            ml = threading.Thread(target=self.motorloop, args=(q,))
+            ml.daemon = True
+            ml.start()
+
         # Drop timeout value to 1s
+        listevt = threading.Event()
         self.ser.timeout = 1
-        self.th = threading.Thread(target=self.loop, args=(self.cond, self.state == HatState.FIRMWARE, self.cbqueue))
+        self.th = threading.Thread(target=self.loop, args=(self.cond, self.state == HatState.FIRMWARE, self.cbqueue, listevt))
         self.th.daemon = True
         self.th.start()
 
         if self.state == HatState.FIRMWARE:
             self.write(b"port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r")
             self.write(b"list\r")
+            listevt.set()
         elif self.state == HatState.NEEDNEWFIRMWARE or self.state == HatState.BOOTLOADER:
             self.write(b"reboot\r")
 
@@ -239,9 +249,9 @@ class BuildHAT:
         self.ser.write(data)
         if not self.fin and log:
             if replace != "":
-                logging.info(f"> {replace}")
+                logging.debug(f"> {replace}")
             else:
-                logging.info(f"> {data.decode('utf-8', 'ignore').strip()}")
+                logging.debug(f"> {data.decode('utf-8', 'ignore').strip()}")
 
     def read(self):
         """Read data from the serial port of Build HAT
@@ -254,7 +264,7 @@ class BuildHAT:
         except serial.SerialException:
             pass
         if line != "":
-            logging.info(f"< {line}")
+            logging.debug(f"< {line}")
         return line
 
     def shutdown(self):
@@ -264,6 +274,8 @@ class BuildHAT:
             self.running = False
             self.th.join()
             self.cbqueue.put(())
+            for q in self.motorqueue:
+                q.put((None, None))
             self.cb.join()
             turnoff = ""
             for p in range(4):
@@ -275,6 +287,21 @@ class BuildHAT:
                     self.write(f"port {p} ; write1 {hexstr}\r".encode())
             self.write(f"{turnoff}\r".encode())
             self.write(b"port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r")
+
+    def motorloop(self, q):
+        """Event handling for non-blocking motor commands
+
+        :param q: Queue of motor functions
+        """
+        while self.running:
+            func, data = q.get()
+            if func is None:
+                break
+            else:
+                func(*data)
+                func = None  # Necessary for 'del' to function correctly on motor object
+                data = None
+                q.task_done()
 
     def callbackloop(self, q):
         """Event handling for callbacks
@@ -292,7 +319,7 @@ class BuildHAT:
             cb[0]()(cb[1])
             q.task_done()
 
-    def loop(self, cond, uselist, q):
+    def loop(self, cond, uselist, q, listevt):
         """Event handling for Build HAT
 
         :param cond: Condition used to block user's script till we're ready
@@ -312,12 +339,12 @@ class BuildHAT:
                     self.connections[portid].update(typeid, True)
                     if typeid == 64:
                         self.write(f"port {portid} ; on\r".encode())
-                    if uselist:
+                    if uselist and listevt.is_set():
                         count += 1
                 elif cmp(msg, BuildHAT.CONNECTEDPASSIVE):
                     typeid = int(line[2 + len(BuildHAT.CONNECTEDPASSIVE):], 16)
                     self.connections[portid].update(typeid, True)
-                    if uselist:
+                    if uselist and listevt.is_set():
                         count += 1
                 elif cmp(msg, BuildHAT.DISCONNECTED):
                     self.connections[portid].update(-1, False)
@@ -325,14 +352,14 @@ class BuildHAT:
                     self.connections[portid].update(-1, False)
                 elif cmp(msg, BuildHAT.NOTCONNECTED):
                     self.connections[portid].update(-1, False)
-                    if uselist:
+                    if uselist and listevt.is_set():
                         count += 1
                 elif cmp(msg, BuildHAT.RAMPDONE):
-                    with self.rampcond[portid]:
-                        self.rampcond[portid].notify()
+                    ftr = self.rampftr[portid].pop()
+                    ftr.set_result(True)
                 elif cmp(msg, BuildHAT.PULSEDONE):
-                    with self.pulsecond[portid]:
-                        self.pulsecond[portid].notify()
+                    ftr = self.pulseftr[portid].pop()
+                    ftr.set_result(True)
 
             if uselist and count == 4:
                 with cond:
@@ -356,15 +383,22 @@ class BuildHAT:
                     else:
                         if d != "":
                             newdata.append(int(d))
+                # Check data was for our current mode
+                if line[2] == "M" and self.connections[portid].simplemode != int(line[3]):
+                    continue
+                elif line[2] == "C" and self.connections[portid].combimode != int(line[3]):
+                    continue
                 callit = self.connections[portid].callit
                 if callit is not None:
                     q.put((callit, newdata))
                 self.connections[portid].data = newdata
-                with self.portcond[portid]:
-                    self.portcond[portid].notify()
+                try:
+                    ftr = self.portftr[portid].pop()
+                    ftr.set_result(newdata)
+                except IndexError:
+                    pass
 
             if len(line) >= 5 and line[1] == "." and line.endswith(" V"):
                 vin = float(line.split(" ")[0])
-                self.vin = vin
-                with self.vincond:
-                    self.vincond.notify()
+                ftr = self.vinftr.pop()
+                ftr.set_result(vin)

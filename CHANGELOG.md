@@ -1,5 +1,49 @@
 # Change Log
 
+## 0.5.12
+
+### Added
+
+* Ability to set custom device interval for callbacks
+
+### Changed
+
+* New firmware with mitigation for motor disconnecting and selrate command
+
+### Removed
+
+n/a
+
+## 0.5.11
+
+### Added
+
+* Expose release property to allow motor to hold position
+* Updated documentation
+
+### Changed
+
+n/a
+
+### Removed
+
+n/a
+
+## 0.5.10
+
+### Added
+
+* Support for 88008 motor
+* get_distance support for ColourDistanceSensor
+
+### Changed
+
+* Use debug log level for logging
+
+### Removed
+
+n/a
+
 ## 0.5.9
 
 ### Added
