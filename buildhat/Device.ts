@@ -46,7 +46,7 @@ export class Device extends EventEmitter {
     port: Port,
     deviceId: DeviceID,
     modeMap: ModeMap = {},
-    dataMap: DataMap = {}
+    dataMap: DataMap = {},
   ) {
     super();
 
@@ -106,23 +106,23 @@ export class Device extends EventEmitter {
 
     this._hat.on(
       "data",
-      (port: Port, _type: "C" | "M", mode: number, data: number[]) => {
-        if (port !== this.port) {
+      (data: {portId: Port, type: "C" | "M", mode: number, data: number[]}) => {
+        if (data.portId !== this.port) {
           return;
         }
 
         const match = Object.entries(this.modeMap).find(
-          ([_event, modeId]) => mode === modeId
+          ([_event, modeId]) => data.mode === modeId,
         );
         if (!match) {
-          debug("Not listening for", port, mode);
+          debug("Not listening for", data.portId, data.mode);
           return;
         }
 
-        const mappedData = this.dataMapper(match[0], data);
+        const mappedData = this.dataMapper(match[0], data.data);
 
         this.emit(match[0], mappedData);
-      }
+      },
     );
   }
 
@@ -223,7 +223,7 @@ export class Device extends EventEmitter {
       this._combimode = 0;
       const modestr = modev.map(([t1, t2]) => `${t1} ${t2}`).join(" ");
       await this._write(
-        `port ${this.port} ; combi ${this._combimode} ${modestr}\r`
+        `port ${this.port} ; combi ${this._combimode} ${modestr}\r`,
       );
       this._simplemode = -1;
     } else {

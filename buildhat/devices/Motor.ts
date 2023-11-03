@@ -60,11 +60,19 @@ export class Motor extends Device {
   public static async factory(hat: BuildHAT, port: Port, deviceId: DeviceID) {
     const device = new this(hat, port, deviceId);
 
-    await device.mode([
-      [1, 0],
-      [2, 0],
-      [3, 0],
-    ]);
+    console.log({ deviceId });
+    if(String(deviceId)==='38') {
+      await device.mode([
+        [1, 0],
+        [2, 0],
+      ]);
+    } else {
+      await device.mode([
+        [1, 0],
+        [2, 0],
+        [3, 0],
+      ]);
+    }
     await device.plimit(0.7);
     await device.bias(0.3);
 
@@ -87,20 +95,22 @@ export class Motor extends Device {
       mul = -1;
     }
 
-    let pos = await new Promise<number>((resolve) => {
+    const pos = await new Promise<number>((resolve) => {
       this.once("position", (position) => resolve(position));
     });
+    // console.log("initial pos", pos);
 
     const newpos = (degrees * mul + pos) / 360.0;
-    pos /= 360.0;
-    this._run_positional_ramp(pos, newpos, speed);
+    // console.log("new pos", newpos);
+    const normalisedPos = pos / 360.0;
+    await this._run_positional_ramp(normalisedPos, newpos, speed);
     this._runmode = MotorRunmode.NONE;
   }
 
   private async _run_to_position(
     degrees: number,
     speed: number,
-    direction: Direction
+    direction: Direction,
   ) {
     this._runmode = MotorRunmode.DEGREES;
     const data = await new Promise<number[]>((resolve) => {
@@ -124,7 +134,7 @@ export class Motor extends Device {
       newpos = (pos + diff2[0]) / 360;
     } else {
       throw new Error(
-        "Invalid direction, should be: shortest, clockwise or anticlockwise"
+        "Invalid direction, should be: shortest, clockwise or anticlockwise",
       );
     }
     // # Convert current motor position to decimal rotations from preset position to match newpos units
@@ -136,13 +146,16 @@ export class Motor extends Device {
   private async _run_positional_ramp(
     pos: number,
     newpos: number,
-    speed: number
+    speed: number,
   ) {
-    speed = speed * 0.05;
-    const dur = Math.abs((newpos - pos) / speed);
+    const collapsedSpeed = speed * 0.05;
+    const dur = Math.abs((newpos - pos) / collapsedSpeed);
+    // console.log({ pos, newpos, speed, dur, collapsedSpeed });
     const cmd =
-      `port ${this.port}; combi 0 1 0 2 0 3 0 ; select 0; pid ${this.port} 0 1 s4 0.0027777778 0 5 0 .1 3 ; ` +
+      // `port ${this.port}; combi 0 1 0 2 0 3 0 ; select 0; pid ${this.port} 0 1 s4 0.0027777778 0 5 0 .1 3 0.01; ` +
+      `port ${this.port}; combi 0 1 0 2 0 ; select 0; selrate 100; pid ${this.port} 0 1 s4 0.0027777778 0 5 0 .1 3; ` +
       `set ramp ${pos} ${newpos} ${dur} 0\r`;
+    // console.log({ cmd });
     await this._write(cmd);
   }
 
@@ -159,7 +172,7 @@ export class Motor extends Device {
   public run_to_position(
     degrees: number,
     speed: number,
-    direction: Direction = "shortest"
+    direction: Direction = "shortest",
   ) {
     this._runmode = MotorRunmode.DEGREES;
     if (speed < 0 || speed > 100) {

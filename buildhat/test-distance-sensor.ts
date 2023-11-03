@@ -4,7 +4,7 @@ import * as path from "path";
 const main = async () => {
   const firmwarePath = path.join(__dirname, "./data/firmware.bin");
   const signaturePath = path.join(__dirname, "./data/signature.bin");
-  const version = 1643737936;
+  const version = 1674818421;
   const ser = await BuildHAT.factory(firmwarePath, signaturePath, version);
 
   process.on("SIGINT", async () => {
@@ -13,10 +13,10 @@ const main = async () => {
   });
 
   const device1 = (await ser.waitForDeviceAtPort(
-    Port.C
+    Port.B
   )) as ColorDistanceSensor;
   const device2 = (await ser.waitForDeviceAtPort(
-    Port.D
+    Port.C
   )) as ColorDistanceSensor;
 
   device1.on("distance", (data) => console.log("value 1", data));

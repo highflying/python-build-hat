@@ -78,10 +78,13 @@ export const DeviceMap = {
   [DeviceID.LargeAngularMotorGrey]: Motor, // 88017
 };
 
-export const validateDeviceId = (typeId: number | string): DeviceID => {
+export const validateDeviceId = (
+  typeId: number | string,
+): DeviceID | undefined => {
   const id = String(typeId);
   if (!(DeviceMap as any)[id]) {
-    throw new Error(`Unsupported device id ${typeId}`);
+    console.error(`Unsupported device id ${typeId}`);
+    return;
   }
 
   return id as unknown as keyof typeof DeviceMap;
@@ -90,7 +93,7 @@ export const validateDeviceId = (typeId: number | string): DeviceID => {
 export const DeviceFactory = <D extends DeviceID>(
   hat: BuildHAT,
   deviceId: D,
-  port: Port
+  port: Port,
 ): Promise<InstanceType<(typeof DeviceMap)[D]>> => {
   const device = DeviceMap[deviceId];
 

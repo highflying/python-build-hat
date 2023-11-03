@@ -16,7 +16,8 @@ import {
   validateDeviceId,
 } from "./device-map";
 import { calcChecksum, pause } from "./utils";
-import { HubPort } from "@yottabrick/layout-config";
+import { HubPort } from "./HubPort";
+// import { HubPort } from "@yottabrick/layout-config";
 
 const debug = DebugFactory("buildhat:serinterface");
 
@@ -68,7 +69,7 @@ export class BuildHAT extends EventEmitter {
     firmware: string,
     signature: string,
     version: number,
-    device = "/dev/serial0"
+    device = "/dev/serial0",
   ) {
     const instance = new BuildHAT();
 
@@ -148,7 +149,7 @@ export class BuildHAT extends EventEmitter {
     firmware: string,
     signature: string,
     version: number,
-    device = "/dev/serial0"
+    device = "/dev/serial0",
   ) {
     this.ser = new SerialPort({
       path: device,
@@ -197,7 +198,7 @@ export class BuildHAT extends EventEmitter {
 
           if (currentState === HatState.NEEDNEWFIRMWARE) {
             debug("new new firmware");
-            await this.resetHAT();
+            await BuildHAT.resetHAT();
             await this.loadFirmware(firmware, signature);
           } else if (currentState === HatState.BOOTLOADER) {
             debug("bootloader");
@@ -214,7 +215,7 @@ export class BuildHAT extends EventEmitter {
             this.parser.on("data", (data) => this.eventListener(data));
             debug("Selecting ports");
             await this.writeStr(
-              "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
+              "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r",
             );
             await this.writeStr("list\r");
             this.emit("ready");
@@ -242,11 +243,11 @@ export class BuildHAT extends EventEmitter {
 
           debug("init loop end", currentState);
         }
-      })
+      }),
     );
   }
 
-  public async resetHAT() {
+  public static async resetHAT() {
     debug("Resetting BuildHAT");
 
     const RESET_GPIO_NUMBER = 4;
@@ -330,7 +331,7 @@ export class BuildHAT extends EventEmitter {
 
     return new Promise<void>((resolve, reject) => {
       const result = this.ser.write(data, (err) =>
-        err ? reject(err) : resolve()
+        err ? reject(err) : resolve(),
       );
 
       debug("write result", result);
@@ -365,10 +366,10 @@ export class BuildHAT extends EventEmitter {
       await Bluebird.each(turnOffCmds, (cmd) => this.writeStr(cmd));
     }
     await this.writeStr(
-      "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
+      "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r",
     );
     return new Promise<void>((resolve, reject) =>
-      this.ser.close((err) => (err ? reject(err) : resolve()))
+      this.ser.close((err) => (err ? reject(err) : resolve())),
     );
   }
 
@@ -390,15 +391,17 @@ export class BuildHAT extends EventEmitter {
         const typeId = parseInt(connectedMatch[2], 16);
         debug("connected", portId, typeId, type);
         const deviceId = validateDeviceId(typeId);
-        this.ports[portId] = deviceId;
+        if (deviceId) {
+          this.ports[portId] = deviceId;
 
-        this.emit("connected", portId, typeId, deviceId);
+          this.emit("connected", portId, typeId, deviceId);
 
-        const callback = this.connectQueue[portId];
-        if (callback) {
-          this.connectQueue[portId] = undefined;
-          const device = DeviceFactory(this, deviceId, portId);
-          callback(device);
+          const callback = this.connectQueue[portId];
+          if (callback) {
+            this.connectQueue[portId] = undefined;
+            const device = DeviceFactory(this, deviceId, portId);
+            callback(device);
+          }
         }
       } else if (/: disconnected/.test(line)) {
         this.ports[portId] = undefined;
@@ -422,7 +425,7 @@ export class BuildHAT extends EventEmitter {
     }
 
     if (line[0] === "P" && (line[2] === "C" || line[2] === "M")) {
-      const portid = Number(line[1]) as Port;
+      const portId = Number(line[1]) as Port;
       const mode = Number(line[3]);
       const data: number[] = line
         .slice(5)
@@ -430,8 +433,8 @@ export class BuildHAT extends EventEmitter {
         .filter((d) => d !== "")
         .map(Number);
 
-      this.emit("data", portid, line[2], mode, data);
-      debug("data", portid, line[2], mode, data);
+      this.emit("data", { portId, type: line[2], mode, data });
+      debug("data", { portId, type: line[2], mode, data });
     }
 
     const vinRegex = /^[0-9.]+ V/;
