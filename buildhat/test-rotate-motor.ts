@@ -21,7 +21,7 @@ const main = async () => {
 
   // await device.run_to_position(0, 50);
 
-  await device.run_for_degrees(360*2, 20);
+  await device.run_for_degrees(360 * 2, 20);
   console.time("power");
   await pause(20_000);
   console.timeEnd("power");

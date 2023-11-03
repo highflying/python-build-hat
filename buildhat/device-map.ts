@@ -79,7 +79,7 @@ export const DeviceMap = {
 };
 
 export const validateDeviceId = (
-  typeId: number | string,
+  typeId: number | string
 ): DeviceID | undefined => {
   const id = String(typeId);
   if (!(DeviceMap as any)[id]) {
@@ -93,11 +93,11 @@ export const validateDeviceId = (
 export const DeviceFactory = <D extends DeviceID>(
   hat: BuildHAT,
   deviceId: D,
-  port: Port,
-): Promise<InstanceType<(typeof DeviceMap)[D]>> => {
+  port: Port
+): Promise<InstanceType<typeof DeviceMap[D]>> => {
   const device = DeviceMap[deviceId];
 
   return device.factory(hat, port, deviceId) as Promise<
-    InstanceType<(typeof DeviceMap)[D]>
+    InstanceType<typeof DeviceMap[D]>
   >;
 };

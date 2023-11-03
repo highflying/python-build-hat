@@ -61,7 +61,7 @@ export class Motor extends Device {
     const device = new this(hat, port, deviceId);
 
     console.log({ deviceId });
-    if(String(deviceId)==='38') {
+    if (String(deviceId) === "38") {
       await device.mode([
         [1, 0],
         [2, 0],
@@ -110,7 +110,7 @@ export class Motor extends Device {
   private async _run_to_position(
     degrees: number,
     speed: number,
-    direction: Direction,
+    direction: Direction
   ) {
     this._runmode = MotorRunmode.DEGREES;
     const data = await new Promise<number[]>((resolve) => {
@@ -134,7 +134,7 @@ export class Motor extends Device {
       newpos = (pos + diff2[0]) / 360;
     } else {
       throw new Error(
-        "Invalid direction, should be: shortest, clockwise or anticlockwise",
+        "Invalid direction, should be: shortest, clockwise or anticlockwise"
       );
     }
     // # Convert current motor position to decimal rotations from preset position to match newpos units
@@ -146,7 +146,7 @@ export class Motor extends Device {
   private async _run_positional_ramp(
     pos: number,
     newpos: number,
-    speed: number,
+    speed: number
   ) {
     const collapsedSpeed = speed * 0.05;
     const dur = Math.abs((newpos - pos) / collapsedSpeed);
@@ -172,7 +172,7 @@ export class Motor extends Device {
   public run_to_position(
     degrees: number,
     speed: number,
-    direction: Direction = "shortest",
+    direction: Direction = "shortest"
   ) {
     this._runmode = MotorRunmode.DEGREES;
     if (speed < 0 || speed > 100) {

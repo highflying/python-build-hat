@@ -69,7 +69,7 @@ export class BuildHAT extends EventEmitter {
     firmware: string,
     signature: string,
     version: number,
-    device = "/dev/serial0",
+    device = "/dev/serial0"
   ) {
     const instance = new BuildHAT();
 
@@ -149,7 +149,7 @@ export class BuildHAT extends EventEmitter {
     firmware: string,
     signature: string,
     version: number,
-    device = "/dev/serial0",
+    device = "/dev/serial0"
   ) {
     this.ser = new SerialPort({
       path: device,
@@ -215,7 +215,7 @@ export class BuildHAT extends EventEmitter {
             this.parser.on("data", (data) => this.eventListener(data));
             debug("Selecting ports");
             await this.writeStr(
-              "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r",
+              "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
             );
             await this.writeStr("list\r");
             this.emit("ready");
@@ -243,7 +243,7 @@ export class BuildHAT extends EventEmitter {
 
           debug("init loop end", currentState);
         }
-      }),
+      })
     );
   }
 
@@ -331,7 +331,7 @@ export class BuildHAT extends EventEmitter {
 
     return new Promise<void>((resolve, reject) => {
       const result = this.ser.write(data, (err) =>
-        err ? reject(err) : resolve(),
+        err ? reject(err) : resolve()
       );
 
       debug("write result", result);
@@ -366,10 +366,10 @@ export class BuildHAT extends EventEmitter {
       await Bluebird.each(turnOffCmds, (cmd) => this.writeStr(cmd));
     }
     await this.writeStr(
-      "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r",
+      "port 0 ; select ; port 1 ; select ; port 2 ; select ; port 3 ; select ; echo 0\r"
     );
     return new Promise<void>((resolve, reject) =>
-      this.ser.close((err) => (err ? reject(err) : resolve())),
+      this.ser.close((err) => (err ? reject(err) : resolve()))
     );
   }
 
